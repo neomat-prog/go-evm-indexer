@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"math/big"
 	"os"
 	"time"
 
@@ -26,12 +27,16 @@ func main() {
 		RPCServerAddr: os.Getenv("ETH_RPC_URL"),
 	})
 
+	logs, err := eth.FetchTransfers(ctx, client, big.NewInt(25769300), big.NewInt(25769302))
+
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	defer client.Close()
-
 	log.Println("connected")
+
+	log.Println("logs:", len(logs))
+
+	defer client.Close()
 
 }
