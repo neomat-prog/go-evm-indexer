@@ -16,9 +16,9 @@ type apiError struct {
 
 func (e apiError) Error() string { return e.Err }
 
-func newAPIError(status int, msg string) apiError {
-	return apiError{Err: msg, Status: status}
-}
+// func newAPIError(status int, msg string) apiError {
+// 	return apiError{Err: msg, Status: status}
+// }
 
 func writeJSON(w http.ResponseWriter, status int, v any) error {
 	w.Header().Set("Content-Type", "application/json")
