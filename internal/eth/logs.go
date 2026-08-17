@@ -2,6 +2,7 @@ package eth
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
@@ -19,11 +20,25 @@ type Transfer struct {
 	TxHash common.Hash
 }
 
-// func parseTransfer(types.Log) (Transfer, error) {}
+func parseTransfer(log types.Log) (Transfer, error) {
+	if len(log.Topics) != 3 {
+		return Transfer{}, fmt.Errorf("invalid Transfer log: expected 3 got %d", len(log.Topics))
+	}
+	if len(log.Data) != 32 {
+		return Transfer{}, fmt.Errorf("invalid Transfer log data length: %d", len(log.Data))
+	}
+	return Transfer{
+		From:   common.BytesToAddress(log.Topics[1].Bytes()[12:]),
+		To:     common.BytesToAddress(log.Topics[2].Bytes()[12:]),
+		Value:  new(big.Int).SetBytes(log.Data),
+		Block:  log.BlockNumber,
+		TxHash: log.TxHash,
+	}, nil
+}
 
 var transferTopic = crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)"))
 
-func FetchTransfers(ctx context.Context, token common.Address, client *ethclient.Client, from, to *big.Int) ([]types.Log, error) {
+func FetchTransfers(ctx context.Context, token common.Address, client *ethclient.Client, from, to *big.Int) ([]Transfer, error) {
 
 	q := ethereum.FilterQuery{
 		FromBlock: from,
@@ -32,6 +47,22 @@ func FetchTransfers(ctx context.Context, token common.Address, client *ethclient
 		Topics:    [][]common.Hash{{transferTopic}},
 	}
 
-	return client.FilterLogs(ctx, q)
+	log, err := client.FilterLogs(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+
+	transfers := make([]Transfer, 0, len(log))
+
+	for _, log := range log {
+		transfer, err := parseTransfer(log)
+		if err != nil {
+			return nil, err
+		}
+
+		transfers = append(transfers, transfer)
+	}
+
+	return transfers, nil
 
 }

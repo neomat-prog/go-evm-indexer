@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"math/big"
 	"os"
@@ -53,13 +52,5 @@ func main() {
 		log.Fatalf("no logs in blocks %s-%s", from, to)
 	}
 
-	l := logs[0]
-	fmt.Println("block:", l.BlockNumber)
-	fmt.Println("tx:", l.TxHash.Hex())
-	fmt.Println("topics:", len(l.Topics))
-	if len(l.Topics) == 3 {
-		fmt.Println("from:", common.BytesToAddress(l.Topics[1].Bytes()).Hex())
-		fmt.Println("to:", common.BytesToAddress(l.Topics[2].Bytes()).Hex())
-	}
-	fmt.Println("value:", new(big.Int).SetBytes(l.Data).String())
+	// TODO(neomat-prog): implement todo transfer print after parse
 }
