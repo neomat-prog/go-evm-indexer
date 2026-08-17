@@ -5,24 +5,33 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-// currently locked for testing only filtering logs
+type Transfer struct {
+	From   common.Address
+	To     common.Address
+	Value  *big.Int
+	Block  uint64
+	TxHash common.Hash
+}
 
-// var transferTopic = crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)"))
+// func parseTransfer(types.Log) (Transfer, error) {}
 
-func FetchTransfers(ctx context.Context, client *ethclient.Client, from, to *big.Int) ([]types.Log, error) {
-	// q := ethereum.FilterQuery{
-	// 	FromBlock: from,
-	// 	ToBlock:   to,
-	// 	Addresses: []common.Address{common.HexToAddress("0xA0b86991c6218b36c1d19D4a2E3606eB48")},
-	// 	Topics:    [][]common.Hash{{transferTopic}},
-	// }
+var transferTopic = crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)"))
 
-	return client.FilterLogs(ctx, ethereum.FilterQuery{
+func FetchTransfers(ctx context.Context, token common.Address, client *ethclient.Client, from, to *big.Int) ([]types.Log, error) {
+
+	q := ethereum.FilterQuery{
 		FromBlock: from,
 		ToBlock:   to,
-	})
+		Addresses: []common.Address{token},
+		Topics:    [][]common.Hash{{transferTopic}},
+	}
+
+	return client.FilterLogs(ctx, q)
+
 }
