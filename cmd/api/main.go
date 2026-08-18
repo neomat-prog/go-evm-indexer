@@ -40,7 +40,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	from := new(big.Int).SetUint64(head - 10)
+	from := new(big.Int).SetUint64(head - 9)
 	to := new(big.Int).SetUint64(head)
 
 	logs, err := eth.FetchTransfers(ctx, usdc, client, from, to)
