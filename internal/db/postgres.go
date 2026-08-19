@@ -3,8 +3,13 @@ package db
 import (
 	"context"
 	"fmt"
+	"strings"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/neomat-prog/go-evm-indexer/internal/eth"
 )
 
 const schema = `
@@ -25,6 +30,15 @@ const schema = `
   token, block_number);
   `
 
+const insertTransfer = `
+      INSERT INTO transfers (
+              chain_id, token, block_number, block_hash,
+              tx_hash, tx_index, log_index,
+              from_addr, to_addr, value
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      ON CONFLICT (chain_id, tx_hash, log_index) DO NOTHING
+`
+
 func NewPostgres(ctx context.Context, databaseUrl string) (*pgxpool.Pool, error) {
 	pool, err := pgxpool.New(ctx, databaseUrl)
 	if err != nil {
@@ -43,6 +57,35 @@ func NewPostgres(ctx context.Context, databaseUrl string) (*pgxpool.Pool, error)
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	if _, err := pool.Exec(ctx, schema); err != nil {
 		return fmt.Errorf("migrate: %w", err)
+	}
+	return nil
+}
+
+func SaveTransfers(ctx context.Context, pool *pgxpool.Pool, transfers []eth.Transfer) error {
+	if len(transfers) == 0 {
+		return nil
+	}
+
+	batch := &pgx.Batch{}
+	for _, t := range transfers {
+		batch.Queue(insertTransfer,
+			t.ChainID.Int64(),
+			strings.ToLower(t.Token.Hex()),
+			int64(t.BlockNumber),
+			t.BlockHash.Hex(),
+			t.TxHash.Hex(),
+			int32(t.TxIndex),
+			int32(t.LogIndex),
+			strings.ToLower(t.From.Hex()),
+			strings.ToLower(t.To.Hex()),
+			pgtype.Numeric{Int: t.Value, Exp: 0, Valid: true},
+		).Exec(func(pgconn.CommandTag) error {
+			return nil
+		})
+	}
+
+	if err := pool.SendBatch(ctx, batch).Close(); err != nil {
+		return fmt.Errorf("save transfers: %w", err)
 	}
 	return nil
 }
