@@ -12,7 +12,6 @@ import (
 	"github.com/neomat-prog/go-evm-indexer/internal/config"
 	"github.com/neomat-prog/go-evm-indexer/internal/db"
 	"github.com/neomat-prog/go-evm-indexer/internal/eth"
-	"github.com/neomat-prog/go-evm-indexer/internal/indexer"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -45,15 +44,21 @@ func run() error {
 	if err != nil {
 		return err
 	}
+
+	chainID, err := client.ChainID(ctx)
+	if err != nil {
+		return err
+	}
+
 	defer client.Close()
 
-	srv := api.NewServer(cfg.ListenAddr)
-	idx := indexer.New(pool, client, cfg)
+	srv := api.NewServer(cfg.ListenAddr, pool, chainID, cfg.Token)
+	// idx := indexer.New(pool, client, cfg)
 
 	// Both loops block forever; whichever fails first cancels gctx.
 	g, gctx := errgroup.WithContext(ctx)
 	g.Go(func() error { return srv.Run(gctx) })
-	g.Go(func() error { return idx.Run(gctx) })
+	// g.Go(func() error { return idx.Run(gctx) })
 
 	// Ctrl-C surfaces as context.Canceled, not a real failure.
 	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {

@@ -4,8 +4,12 @@ import (
 	"context"
 	"errors"
 	"log"
+	"math/big"
 	"net/http"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ChainReader interface {
@@ -14,10 +18,13 @@ type ChainReader interface {
 
 type Server struct {
 	listenAddr string
+	pool       *pgxpool.Pool
+	chainID    *big.Int
+	token      common.Address
 }
 
-func NewServer(listenAddr string) *Server {
-	return &Server{listenAddr: listenAddr}
+func NewServer(listenAddr string, pool *pgxpool.Pool, chainID *big.Int, token common.Address) *Server {
+	return &Server{listenAddr: listenAddr, pool: pool, chainID: chainID, token: token}
 }
 
 // Run serves until ctx is cancelled, then drains in-flight requests. Signal
