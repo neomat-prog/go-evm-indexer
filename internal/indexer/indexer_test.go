@@ -1,6 +1,10 @@
 package indexer
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/neomat-prog/go-evm-indexer/internal/config"
+)
 
 func TestNextRange(t *testing.T) {
 	tests := []struct {
@@ -68,24 +72,20 @@ func TestNextRangeTilesWithoutGapOrOverlap(t *testing.T) {
 	}
 }
 
-func TestConfigSetDefaults(t *testing.T) {
-	var c Config
-	c.setDefaults()
+// The two zero values that are fatal, not just wrong.
+func TestNewFillsUnsafeZeroValues(t *testing.T) {
+	ix := New(nil, nil, config.Config{})
 
-	if c.Chunk != defaultChunk {
-		t.Errorf("Chunk = %d, want %d", c.Chunk, defaultChunk)
+	if ix.cfg.Chunk != config.DefaultChunk {
+		t.Errorf("Chunk = %d, want %d", ix.cfg.Chunk, config.DefaultChunk)
 	}
-	if c.Lookback != defaultLookback {
-		t.Errorf("Lookback = %d, want %d", c.Lookback, defaultLookback)
-	}
-	if c.Interval != defaultInterval {
-		t.Errorf("Interval = %v, want %v", c.Interval, defaultInterval)
+	if ix.cfg.Interval != config.DefaultInterval {
+		t.Errorf("Interval = %v, want %v", ix.cfg.Interval, config.DefaultInterval)
 	}
 
-	set := Config{Chunk: 2_000}
-	set.setDefaults()
-	if set.Chunk != 2_000 {
-		t.Errorf("setDefaults overwrote an explicit Chunk: got %d", set.Chunk)
+	set := New(nil, nil, config.Config{Chunk: 2_000})
+	if set.cfg.Chunk != 2_000 {
+		t.Errorf("New overwrote an explicit Chunk: got %d", set.cfg.Chunk)
 	}
 }
 
@@ -95,7 +95,7 @@ func TestSaturatingSub(t *testing.T) {
 	}{
 		{100, 12, 88},
 		{12, 12, 0},
-		{3, 12, 0}, // would wrap to a huge number with plain a-b
+		{3, 12, 0},
 		{0, 0, 0},
 	}
 

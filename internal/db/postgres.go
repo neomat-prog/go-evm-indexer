@@ -37,9 +37,7 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
-// LastIndexedBlock returns the highest block scanned for this (chain, token),
-// or fallback if the pair has never been indexed. Note this is the last block
-// *scanned*, not the last block that happened to contain a Transfer.
+// LastIndexedBlock returns the highest block scanned for this (chain, token), or fallback if the pair has never been indexed.
 func LastIndexedBlock(ctx context.Context, pool *pgxpool.Pool, chainID *big.Int, token common.Address, fallback uint64) (uint64, error) {
 	var block int64
 
@@ -58,14 +56,7 @@ func LastIndexedBlock(ctx context.Context, pool *pgxpool.Pool, chainID *big.Int,
 	return uint64(block), nil
 }
 
-// SaveChunk writes the transfers found in blocks up to toBlock and advances the
-// cursor to toBlock, both in one transaction.
-//
-// The atomicity is the point: if the cursor were committed ahead of the rows, a
-// crash in between would leave the cursor claiming blocks are indexed that are
-// not, and nothing would ever go back for them. Committing together means a
-// crash can only ever cost a re-scan, which insertTransfer's ON CONFLICT
-// absorbs.
+// SaveChunk writes the transfers found in blocks up to toBlock and advances the cursor to toBlock, both in one transaction.
 func SaveChunk(ctx context.Context, pool *pgxpool.Pool, chainID *big.Int, token common.Address, toBlock uint64, transfers []eth.Transfer) error {
 	tx, err := pool.Begin(ctx)
 	if err != nil {
@@ -97,8 +88,7 @@ func SaveChunk(ctx context.Context, pool *pgxpool.Pool, chainID *big.Int, token 
 		}
 	}
 
-	// Runs even when the chunk held no transfers: an empty range is still a
-	// scanned range, and the cursor has to move or the loop refetches it forever.
+	// Runs even when the chunk held no transfers
 	if _, err := tx.Exec(ctx, UpsertCursor,
 		chainID.Int64(), strings.ToLower(token.Hex()), int64(toBlock),
 	); err != nil {

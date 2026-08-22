@@ -1,11 +1,3 @@
-// Package indexer walks the chain forward in bounded chunks, writing ERC-20
-// Transfer logs to Postgres and recording how far it has scanned.
-//
-// The cursor is an in-memory number: "every block at or below this is fully in
-// the database". It is seeded once at startup from indexer_state and advanced
-// in lockstep with the rows it describes, so a restart resumes exactly where
-// the previous process stopped instead of skipping whatever was mined while it
-// was down.
 package indexer
 
 import (
@@ -15,67 +7,30 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/neomat-prog/go-evm-indexer/internal/config"
 	"github.com/neomat-prog/go-evm-indexer/internal/db"
 	"github.com/neomat-prog/go-evm-indexer/internal/eth"
 )
 
-const (
-	// hardcoded default chunk value, choose any other default chunk you need
-	defaultChunk = 10
-
-	// confirmations keeps the window this far behind head, since blocks nearer
-	// the tip can still be reorged out from under us.
-	//
-	// ponytail: one constant for one chain. Move it into Config when a second
-	// chain with a different finality assumption shows up.
-	confirmations = 12
-
-	defaultInterval = 12 * time.Second
-	defaultLookback = 100
-)
-
-// Config holds the tunables for an Indexer. Every field except Token has a
-// usable zero value.
-type Config struct {
-	// Token is the ERC-20 contract whose Transfer logs are indexed.
-	Token common.Address
-
-	// Interval is how long to wait after catching up before polling head again.
-	Interval time.Duration
-
-	// Lookback is how far behind head to begin when this token has never been
-	// indexed. Ignored once a cursor exists.
-	Lookback uint64
-
-	// Chunk is the number of blocks per eth_getLogs call. Providers cap this
-	// and reject anything wider, so it is a property of the RPC plan, not a
-	// performance dial.
-	Chunk uint64
-}
-
-func (c *Config) setDefaults() {
-	if c.Interval <= 0 {
-		c.Interval = defaultInterval
-	}
-	if c.Lookback == 0 {
-		c.Lookback = defaultLookback
-	}
-	if c.Chunk == 0 {
-		c.Chunk = defaultChunk
-	}
-}
+// Blocks behind head to stop at. Reorg safety, not a tunable.
+const confirmations = 12
 
 type Indexer struct {
 	pool   *pgxpool.Pool
 	client *ethclient.Client
-	cfg    Config
+	cfg    config.Config
 }
 
-func New(pool *pgxpool.Pool, client *ethclient.Client, cfg Config) *Indexer {
-	cfg.setDefaults()
+func New(pool *pgxpool.Pool, client *ethclient.Client, cfg config.Config) *Indexer {
+	// Zero Interval panics NewTicker; zero Chunk loops forever.
+	if cfg.Interval <= 0 {
+		cfg.Interval = config.DefaultInterval
+	}
+	if cfg.Chunk == 0 {
+		cfg.Chunk = config.DefaultChunk
+	}
 	return &Indexer{pool: pool, client: client, cfg: cfg}
 }
 
@@ -116,10 +71,8 @@ func (ix *Indexer) Run(ctx context.Context) error {
 	}
 }
 
-// catchUp scans chunk by chunk from cursor to the current safe head, returning
-// the last block scanned. It drains the whole backlog without waiting on the
-// ticker, so a long outage is caught up at RPC speed rather than one chunk per
-// interval.
+// catchUp scans chunk by chunk up to the safe head, returning the last block
+// scanned. Drains the whole backlog at RPC speed, not one chunk per interval.
 func (ix *Indexer) catchUp(ctx context.Context, chainID *big.Int, cursor uint64) (uint64, error) {
 	head, err := ix.client.BlockNumber(ctx)
 	if err != nil {
@@ -147,20 +100,14 @@ func (ix *Indexer) catchUp(ctx context.Context, chainID *big.Int, cursor uint64)
 			from, to, head, len(transfers))
 		cursor = to
 
-		// A backfill can run for a long time; notice cancellation between
-		// chunks rather than only at the ticker.
+		// Notice cancellation mid-backfill, not just at the ticker.
 		if err := ctx.Err(); err != nil {
 			return cursor, err
 		}
 	}
 }
 
-// nextRange picks the next window to fetch, or reports ok == false when the
-// cursor has reached safe. from excludes cursor and to includes safe, so
-// consecutive calls tile the chain with no gap and no overlap.
-//
-// The window spans at most chunk blocks inclusive of both ends, which is how
-// providers count the limit they advertise.
+// nextRange picks the next window, or ok == false once cursor reaches safe.
 func nextRange(cursor, safe, chunk uint64) (from, to uint64, ok bool) {
 	if cursor >= safe {
 		return 0, 0, false
@@ -168,8 +115,7 @@ func nextRange(cursor, safe, chunk uint64) (from, to uint64, ok bool) {
 	return cursor + 1, min(cursor+chunk, safe), true
 }
 
-// saturatingSub avoids the wraparound that plain a-b gives on a chain whose
-// head is still lower than the offset, e.g. a fresh devnet.
+// saturatingSub avoids the wraparound of a-b when head < offset (fresh devnet).
 func saturatingSub(a, b uint64) uint64 {
 	if a < b {
 		return 0
