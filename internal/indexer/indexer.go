@@ -20,10 +20,10 @@ const confirmations = 12
 type Indexer struct {
 	pool   *pgxpool.Pool
 	client *ethclient.Client
-	cfg    config.Config
+	cfg    config.ConfigOpts
 }
 
-func New(pool *pgxpool.Pool, client *ethclient.Client, cfg config.Config) *Indexer {
+func New(pool *pgxpool.Pool, client *ethclient.Client, cfg config.ConfigOpts) *Indexer {
 	// Zero Interval panics NewTicker; zero Chunk loops forever.
 	if cfg.Interval <= 0 {
 		cfg.Interval = config.DefaultInterval

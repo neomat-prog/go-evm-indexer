@@ -41,7 +41,7 @@ func run() error {
 		return err
 	}
 
-	client, err := eth.NewClient(ctx, eth.ConfigOpts{RPCServerAddr: cfg.ETHRPCURL})
+	client, err := eth.NewClient(ctx, config.ConfigOpts{ETHRPCURL: cfg.ETHRPCURL})
 	if err != nil {
 		return err
 	}

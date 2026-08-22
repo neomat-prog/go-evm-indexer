@@ -17,7 +17,7 @@ const (
 	DefaultChunk      = 10
 )
 
-type Config struct {
+type ConfigOpts struct {
 	ListenAddr string
 	DBURL      string
 	ETHRPCURL  string
@@ -28,8 +28,8 @@ type Config struct {
 	Chunk    uint64         // blocks per eth_getLogs call; providers cap this
 }
 
-func Load() (Config, error) {
-	cfg := Config{
+func Load() (ConfigOpts, error) {
+	cfg := ConfigOpts{
 		ListenAddr: envStr("LISTEN_ADDR", DefaultListenAddr),
 		DBURL:      envStr("DB_URL", ""),
 		ETHRPCURL:  envStr("ETH_RPC_URL", ""),

@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/neomat-prog/go-evm-indexer/internal/config"
 )
 
 func fakeNode(t *testing.T, chainID string) *httptest.Server {
@@ -30,7 +32,7 @@ func fakeNode(t *testing.T, chainID string) *httptest.Server {
 func TestNewClientConnects(t *testing.T) {
 	node := fakeNode(t, "0x1")
 
-	client, err := NewClient(context.Background(), ConfigOpts{RPCServerAddr: node.URL})
+	client, err := NewClient(context.Background(), config.ConfigOpts{ETHRPCURL: node.URL})
 
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
@@ -43,8 +45,8 @@ func TestNewClientFailsWhenNodeIsDown(t *testing.T) {
 	url := node.URL
 	node.Close()
 
-	if _, err := NewClient(context.Background(), ConfigOpts{
-		RPCServerAddr: url,
+	if _, err := NewClient(context.Background(), config.ConfigOpts{
+		ETHRPCURL: url,
 	}); err == nil {
 		t.Fatal("NewClient succeeded against a closed node, want error")
 	}

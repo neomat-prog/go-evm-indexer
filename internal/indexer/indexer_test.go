@@ -74,7 +74,7 @@ func TestNextRangeTilesWithoutGapOrOverlap(t *testing.T) {
 
 // The two zero values that are fatal, not just wrong.
 func TestNewFillsUnsafeZeroValues(t *testing.T) {
-	ix := New(nil, nil, config.Config{})
+	ix := New(nil, nil, config.ConfigOpts{})
 
 	if ix.cfg.Chunk != config.DefaultChunk {
 		t.Errorf("Chunk = %d, want %d", ix.cfg.Chunk, config.DefaultChunk)
@@ -83,7 +83,7 @@ func TestNewFillsUnsafeZeroValues(t *testing.T) {
 		t.Errorf("Interval = %v, want %v", ix.cfg.Interval, config.DefaultInterval)
 	}
 
-	set := New(nil, nil, config.Config{Chunk: 2_000})
+	set := New(nil, nil, config.ConfigOpts{Chunk: 2_000})
 	if set.cfg.Chunk != 2_000 {
 		t.Errorf("New overwrote an explicit Chunk: got %d", set.cfg.Chunk)
 	}
