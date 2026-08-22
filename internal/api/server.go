@@ -5,8 +5,6 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"os/signal"
-	"syscall"
 	"time"
 )
 
@@ -22,7 +20,9 @@ func NewServer(listenAddr string) *Server {
 	return &Server{listenAddr: listenAddr}
 }
 
-func (s *Server) Run() error {
+// Run serves until ctx is cancelled, then drains in-flight requests. Signal
+// handling belongs to main, which owns the ctx shared with the indexer.
+func (s *Server) Run(ctx context.Context) error {
 	srv := &http.Server{
 		Addr:              s.listenAddr,
 		Handler:           s.routes(),
@@ -31,9 +31,6 @@ func (s *Server) Run() error {
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -48,7 +45,7 @@ func (s *Server) Run() error {
 	case err := <-errCh:
 		return err
 	case <-ctx.Done():
-		log.Println("shutting down")
+		log.Println("server shutting down")
 	}
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

@@ -62,10 +62,10 @@ func parseTransfer(chainID *big.Int, log types.Log) (Transfer, error) {
 
 var transferTopic = crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)"))
 
-func FetchTransfers(ctx context.Context, token common.Address, client *ethclient.Client, from, to *big.Int) ([]Transfer, error) {
-
-	chainID, err := client.ChainID(ctx)
-
+// FetchTransfers returns every ERC-20 Transfer log emitted by token in the
+// inclusive block range [from, to]. chainID is passed in rather than fetched
+// here so a backfill does not spend an extra RPC round-trip per chunk.
+func FetchTransfers(ctx context.Context, client *ethclient.Client, chainID *big.Int, token common.Address, from, to *big.Int) ([]Transfer, error) {
 	q := ethereum.FilterQuery{
 		FromBlock: from,
 		ToBlock:   to,
