@@ -13,9 +13,6 @@ type Log struct {
 	Token string
 }
 
-// TODO(neomat-prog): just fetch the first 10 blocks as an exercise and move on
-// from there
-
 const firstBlocksLimit = 10
 
 func (s *Server) handleTokenLog(w http.ResponseWriter, r *http.Request) error {
