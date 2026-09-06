@@ -40,12 +40,7 @@ func run() error {
 		return err
 	}
 
-	client, err := eth.NewClient(ctx, config.ConfigOpts{ETHRPCURL: cfg.ETHRPCURL})
-	if err != nil {
-		return err
-	}
-
-	chainID, err := client.ChainID(ctx)
+	client, chainID, err := eth.NewClient(ctx, config.ConfigOpts{ETHRPCURL: cfg.ETHRPCURL})
 	if err != nil {
 		return err
 	}

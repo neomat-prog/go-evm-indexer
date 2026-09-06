@@ -4,25 +4,26 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/neomat-prog/go-evm-indexer/internal/config"
 )
 
-func NewClient(ctx context.Context, cfg config.ConfigOpts) (*ethclient.Client, error) {
+func NewClient(ctx context.Context, cfg config.ConfigOpts) (*ethclient.Client, *big.Int, error) {
 	if cfg.ETHRPCURL == "" {
-		return nil, errors.New("eth: ETH_RPC_URL is required")
+		return nil, nil, errors.New("eth: ETH_RPC_URL is required")
 	}
 
 	client, err := ethclient.DialContext(ctx, cfg.ETHRPCURL)
 	if err != nil {
-		return nil, fmt.Errorf("dial: %w", err)
+		return nil, nil, fmt.Errorf("dial: %w", err)
 	}
-
-	if _, err := client.ChainID(ctx); err != nil {
+	chainID, err := client.ChainID(ctx)
+	if err != nil {
 		client.Close()
-		return nil, fmt.Errorf("eth_chainId: %w", err)
+		return nil, nil, fmt.Errorf("eth_chainId: %w", err)
 	}
 
-	return client, nil
+	return client, chainID, nil
 }
