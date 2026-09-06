@@ -32,11 +32,16 @@ func fakeNode(t *testing.T, chainID string) *httptest.Server {
 func TestNewClientConnects(t *testing.T) {
 	node := fakeNode(t, "0x1")
 
-	client, err := NewClient(context.Background(), config.ConfigOpts{ETHRPCURL: node.URL})
+	client, chainID, err := NewClient(context.Background(), config.ConfigOpts{ETHRPCURL: node.URL})
 
 	if err != nil {
 		t.Fatalf("NewClient: %v", err)
 	}
+
+	if chainID.Int64() != 1 {
+		t.Fatalf("chainID = %d, want 1", chainID.Int64())
+	}
+
 	defer client.Close()
 }
 
@@ -45,7 +50,7 @@ func TestNewClientFailsWhenNodeIsDown(t *testing.T) {
 	url := node.URL
 	node.Close()
 
-	if _, err := NewClient(context.Background(), config.ConfigOpts{
+	if _, _, err := NewClient(context.Background(), config.ConfigOpts{
 		ETHRPCURL: url,
 	}); err == nil {
 		t.Fatal("NewClient succeeded against a closed node, want error")
