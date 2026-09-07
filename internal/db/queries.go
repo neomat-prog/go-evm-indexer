@@ -43,3 +43,12 @@ const UpsertCursor = `
               SET last_indexed_block = EXCLUDED.last_indexed_block
       WHERE indexer_state.last_indexed_block < EXCLUDED.last_indexed_block
 `
+
+const FetchFirstBlocks = `
+    SELECT DISTINCT block_number
+    FROM transfers
+    WHERE chain_id = $1
+      AND token = $2
+    ORDER BY block_number ASC
+    LIMIT $3
+`
