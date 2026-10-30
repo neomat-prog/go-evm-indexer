@@ -57,3 +57,5 @@ const FetchLatestTransferBlock = `SELECT block_number, tx_hash, log_index, from_
   WHERE chain_id = $1 AND token = $2
   ORDER BY block_number DESC, log_index DESC
   LIMIT $3`
+
+const FetchIndexState = `SELECT last_indexed_block FROM indexer_state WHERE chain_id = $1 AND token = $2`
