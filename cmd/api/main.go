@@ -8,10 +8,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/neomat-prog/go-evm-indexer/internal/api"
 	"github.com/neomat-prog/go-evm-indexer/internal/config"
 	"github.com/neomat-prog/go-evm-indexer/internal/db"
 	"github.com/neomat-prog/go-evm-indexer/internal/eth"
+	"github.com/neomat-prog/go-evm-indexer/internal/server"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -47,7 +47,7 @@ func run() error {
 
 	defer client.Close()
 
-	srv := api.NewServer(cfg.ListenAddr, pool, chainID, cfg.Token)
+	srv := server.NewServer(cfg.ListenAddr, pool, chainID, cfg.Token)
 	// idx := indexer.New(pool, client, cfg)
 
 	// Both loops block forever; whichever fails first cancels gctx.
