@@ -42,7 +42,7 @@ func LastIndexedBlock(ctx context.Context, pool *pgxpool.Pool, chainID *big.Int,
 	var block int64
 
 	err := pool.QueryRow(ctx,
-		`SELECT last_indexed_block FROM indexer_state WHERE chain_id = $1 AND token = $2`,
+		FetchIndexState,
 		chainID.Int64(), strings.ToLower(token.Hex()),
 	).Scan(&block)
 
@@ -99,4 +99,26 @@ func SaveChunk(ctx context.Context, pool *pgxpool.Pool, chainID *big.Int, token 
 		return fmt.Errorf("commit chunk: %w", err)
 	}
 	return nil
+}
+
+type Transfer struct {
+	BlockNumber int64  `json:"block_number"`
+	TxHash      string `json:"tx_hash"`
+	LogIndex    int    `json:"log_index"`
+	From        string `json:"from"`
+	To          string `json:"to"`
+	Value       string `json:"value"`
+}
+
+func LatestTransferBlocks(ctx context.Context, pool *pgxpool.Pool, chainID *big.Int, token common.Address, limit int) ([]Transfer, error) {
+	rows, err := pool.Query(ctx, FetchLatestTransferBlock, chainID.Int64(), strings.ToLower(token.Hex()), limit)
+	if err != nil {
+		return nil, err
+	}
+
+	transfers, err := pgx.CollectRows(rows, pgx.RowToStructByPos[Transfer])
+	if err != nil {
+		return nil, err
+	}
+	return transfers, nil
 }

@@ -52,3 +52,10 @@ const FetchFirstBlocks = `
     ORDER BY block_number ASC
     LIMIT $3
 `
+const FetchLatestTransferBlock = `SELECT block_number, tx_hash, log_index, from_addr, to_addr, value::text
+  FROM transfers
+  WHERE chain_id = $1 AND token = $2
+  ORDER BY block_number DESC, log_index DESC
+  LIMIT $3`
+
+const FetchIndexState = `SELECT last_indexed_block FROM indexer_state WHERE chain_id = $1 AND token = $2`
