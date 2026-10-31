@@ -42,7 +42,7 @@ func LastIndexedBlock(ctx context.Context, pool *pgxpool.Pool, chainID *big.Int,
 	var block int64
 
 	err := pool.QueryRow(ctx,
-		`SELECT last_indexed_block FROM indexer_state WHERE chain_id = $1 AND token = $2`,
+		FetchIndexState,
 		chainID.Int64(), strings.ToLower(token.Hex()),
 	).Scan(&block)
 
