@@ -19,12 +19,7 @@ type transfer struct {
 }
 
 func (s *Server) handleLatestTransfers(w http.ResponseWriter, r *http.Request) error {
-	rows, err := s.pool.Query(r.Context(), db.FetchLatestTransferBlock, s.chainID.Int64(), strings.ToLower(s.token.Hex()), 10)
-	if err != nil {
-		return err
-	}
-
-	transfers, err := pgx.CollectRows(rows, pgx.RowToStructByPos[transfer])
+	transfers, err := db.LatestTransferBlocks(r.Context(), s.pool, s.chainID, s.token, 10)
 	if err != nil {
 		return err
 	}
