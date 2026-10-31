@@ -16,66 +16,36 @@ type apiError struct {
 
 func (e apiError) Error() string { return e.Err }
 
-// func newAPIError(status int, msg string) apiError {
-// 	return apiError{Err: msg, Status: status}
-// }
-
+// writeJSON marshals before writing, so a failure returns before any header is
+// sent and the error path can still respond. Write errors mean the client is
+// gone; nothing to report.
 func writeJSON(w http.ResponseWriter, status int, v any) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	return json.NewEncoder(w).Encode(v)
-}
-
-// trackingWriter remembers whether the handler already committed a status, so
-// the error path can't emit a second one ("superfluous WriteHeader" + a body
-// glued onto a successful response).
-type trackingWriter struct {
-	http.ResponseWriter
-	wroteHeader bool
-}
-
-func (w *trackingWriter) WriteHeader(status int) {
-	w.wroteHeader = true
-	w.ResponseWriter.WriteHeader(status)
-}
-
-func (w *trackingWriter) Write(b []byte) (int, error) {
-	w.wroteHeader = true
-	return w.ResponseWriter.Write(b)
+	w.Write(b)
+	return nil
 }
 
 // makeHTTPHandleFunc adapts an error-returning handler into a stdlib handler.
 func makeHTTPHandleFunc(fn apiFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tw := &trackingWriter{ResponseWriter: w}
-
-		err := fn(tw, r)
+		err := fn(w, r)
 		if err == nil {
 			return
 		}
 
-		status := http.StatusInternalServerError
-		payload := apiError{Err: "internal server error"}
-
 		var apiErr apiError
-		if errors.As(err, &apiErr) {
-			payload = apiErr
-			if apiErr.Status != 0 {
-				status = apiErr.Status
-			}
-		}
-
-		if status >= http.StatusInternalServerError {
+		if !errors.As(err, &apiErr) {
 			log.Printf("error: %s %s: %v", r.Method, r.URL.Path, err)
+			apiErr = apiError{Err: "internal server error", Status: http.StatusInternalServerError}
 		}
-
-		// Response already on the wire; nothing left to do but log it.
-		if tw.wroteHeader {
-			return
+		if apiErr.Status == 0 {
+			apiErr.Status = http.StatusInternalServerError
 		}
-
-		if err := writeJSON(tw, status, payload); err != nil {
-			log.Printf("write error: %s %s: %v", r.Method, r.URL.Path, err)
-		}
+		writeJSON(w, apiErr.Status, apiErr)
 	}
 }

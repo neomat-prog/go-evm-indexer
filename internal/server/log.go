@@ -9,10 +9,6 @@ import (
 	"github.com/neomat-prog/go-evm-indexer/internal/db"
 )
 
-type Log struct {
-	Token string
-}
-
 const firstBlocksLimit = 10
 
 func (s *Server) handleTokenLog(w http.ResponseWriter, r *http.Request) error {

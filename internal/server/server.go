@@ -12,10 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type ChainReader interface {
-	BlockNumber(ctx context.Context) (uint64, error)
-}
-
 type Server struct {
 	listenAddr string
 	pool       *pgxpool.Pool
