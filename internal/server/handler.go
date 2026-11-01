@@ -16,20 +16,6 @@ type apiError struct {
 
 func (e apiError) Error() string { return e.Err }
 
-// writeJSON marshals before writing, so a failure returns before any header is
-// sent and the error path can still respond. Write errors mean the client is
-// gone; nothing to report.
-func writeJSON(w http.ResponseWriter, status int, v any) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	w.Write(b)
-	return nil
-}
-
 // makeHTTPHandleFunc adapts an error-returning handler into a stdlib handler.
 func makeHTTPHandleFunc(fn apiFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -48,4 +34,18 @@ func makeHTTPHandleFunc(fn apiFunc) http.HandlerFunc {
 		}
 		writeJSON(w, apiErr.Status, apiErr)
 	}
+}
+
+// writeJSON marshals before writing, so a failure returns before any header is
+// sent and the error path can still respond. Write errors mean the client is
+// gone; nothing to report.
+func writeJSON(w http.ResponseWriter, status int, v any) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	w.Write(b)
+	return nil
 }

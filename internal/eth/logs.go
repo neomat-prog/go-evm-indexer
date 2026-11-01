@@ -12,6 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
+var transferTopic = crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)"))
+
 type Transfer struct {
 	ChainID *big.Int
 	Token   common.Address
@@ -27,40 +29,6 @@ type Transfer struct {
 	TxIndex  uint
 	LogIndex uint
 }
-
-func parseTransfer(chainID *big.Int, log types.Log) (Transfer, error) {
-	if len(log.Topics) != 3 {
-		return Transfer{}, fmt.Errorf(
-			"invalid Transfer log: expected 3 topics, got %d",
-			len(log.Topics),
-		)
-	}
-
-	if len(log.Data) != 32 {
-		return Transfer{}, fmt.Errorf(
-			"invalid Transfer log data length: %d",
-			len(log.Data),
-		)
-	}
-
-	return Transfer{
-		ChainID: new(big.Int).Set(chainID),
-		Token:   log.Address,
-
-		From:  common.BytesToAddress(log.Topics[1].Bytes()[12:]),
-		To:    common.BytesToAddress(log.Topics[2].Bytes()[12:]),
-		Value: new(big.Int).SetBytes(log.Data),
-
-		BlockNumber: log.BlockNumber,
-		BlockHash:   log.BlockHash,
-
-		TxHash:   log.TxHash,
-		TxIndex:  log.TxIndex,
-		LogIndex: log.Index,
-	}, nil
-}
-
-var transferTopic = crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)"))
 
 // FetchTransfers returns every ERC-20 Transfer log emitted by token in the
 // inclusive block range [from, to]. chainID is passed in rather than fetched
@@ -96,4 +64,36 @@ func FetchTransfers(ctx context.Context, client *ethclient.Client, chainID *big.
 
 	return transfers, nil
 
+}
+
+func parseTransfer(chainID *big.Int, log types.Log) (Transfer, error) {
+	if len(log.Topics) != 3 {
+		return Transfer{}, fmt.Errorf(
+			"invalid Transfer log: expected 3 topics, got %d",
+			len(log.Topics),
+		)
+	}
+
+	if len(log.Data) != 32 {
+		return Transfer{}, fmt.Errorf(
+			"invalid Transfer log data length: %d",
+			len(log.Data),
+		)
+	}
+
+	return Transfer{
+		ChainID: new(big.Int).Set(chainID),
+		Token:   log.Address,
+
+		From:  common.BytesToAddress(log.Topics[1].Bytes()[12:]),
+		To:    common.BytesToAddress(log.Topics[2].Bytes()[12:]),
+		Value: new(big.Int).SetBytes(log.Data),
+
+		BlockNumber: log.BlockNumber,
+		BlockHash:   log.BlockHash,
+
+		TxHash:   log.TxHash,
+		TxIndex:  log.TxIndex,
+		LogIndex: log.Index,
+	}, nil
 }

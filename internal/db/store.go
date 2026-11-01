@@ -1,0 +1,102 @@
+package db
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"math/big"
+	"strings"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/neomat-prog/go-evm-indexer/internal/eth"
+)
+
+type Transfer struct {
+	BlockNumber int64  `json:"block_number"`
+	TxHash      string `json:"tx_hash"`
+	LogIndex    int    `json:"log_index"`
+	From        string `json:"from"`
+	To          string `json:"to"`
+	Value       string `json:"value"`
+}
+
+// SaveChunk writes the transfers found in blocks up to toBlock and advances the cursor to toBlock, both in one transaction.
+func SaveChunk(ctx context.Context, pool *pgxpool.Pool, chainID *big.Int, token common.Address, toBlock uint64, transfers []eth.Transfer) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin: %w", err)
+	}
+	defer tx.Rollback(ctx) // no-op once Commit has succeeded
+
+	if len(transfers) > 0 {
+		batch := &pgx.Batch{}
+		for _, t := range transfers {
+			batch.Queue(InsertTransfer,
+				t.ChainID.Int64(),
+				strings.ToLower(t.Token.Hex()),
+				int64(t.BlockNumber),
+				t.BlockHash.Hex(),
+				t.TxHash.Hex(),
+				int32(t.TxIndex),
+				int32(t.LogIndex),
+				strings.ToLower(t.From.Hex()),
+				strings.ToLower(t.To.Hex()),
+				pgtype.Numeric{Int: t.Value, Exp: 0, Valid: true},
+			).Exec(func(pgconn.CommandTag) error {
+				return nil
+			})
+		}
+
+		if err := tx.SendBatch(ctx, batch).Close(); err != nil {
+			return fmt.Errorf("save transfers: %w", err)
+		}
+	}
+
+	// Runs even when the chunk held no transfers
+	if _, err := tx.Exec(ctx, UpsertCursor,
+		chainID.Int64(), strings.ToLower(token.Hex()), int64(toBlock),
+	); err != nil {
+		return fmt.Errorf("advance cursor: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit chunk: %w", err)
+	}
+	return nil
+}
+
+// LastIndexedBlock returns the highest block scanned for this (chain, token), or fallback if the pair has never been indexed.
+func LastIndexedBlock(ctx context.Context, pool *pgxpool.Pool, chainID *big.Int, token common.Address, fallback uint64) (uint64, error) {
+	var block int64
+
+	err := pool.QueryRow(ctx,
+		FetchIndexState,
+		chainID.Int64(), strings.ToLower(token.Hex()),
+	).Scan(&block)
+
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return fallback, nil
+	case err != nil:
+		return 0, fmt.Errorf("last indexed block: %w", err)
+	}
+
+	return uint64(block), nil
+}
+
+func LatestTransferBlocks(ctx context.Context, pool *pgxpool.Pool, chainID *big.Int, token common.Address, limit int) ([]Transfer, error) {
+	rows, err := pool.Query(ctx, FetchLatestTransferBlock, chainID.Int64(), strings.ToLower(token.Hex()), limit)
+	if err != nil {
+		return nil, err
+	}
+
+	transfers, err := pgx.CollectRows(rows, pgx.RowToStructByPos[Transfer])
+	if err != nil {
+		return nil, err
+	}
+	return transfers, nil
+}
